@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>swifttix ICAMTICKETING SYSTEM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Custom Styles & Animations */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        .ticket-cutout {
+            position: relative;
+            background: white;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+        }
+
+        .ticket-cutout::before, .ticket-cutout::after {
+            content: '';
+            position: absolute;
+            height: 20px;
+            width: 20px;
+            background-color: #f3f4f6;
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .ticket-cutout::before { left: -10px; }
+        .ticket-cutout::after { right: -10px; }
+
+        .ticket-dashed-line {
+            border-bottom: 2px dashed #e5e7eb;
+            position: absolute;
+            top: 50%;
+            left: 20px;
+            right: 20px;
+        }
+
+        /* Payment Method Brands */
+        .btn-gcash {
+            background: linear-gradient(90deg, #007DFE 0%, #0057B7 100%);
+            color: white;
+        }
+        
+        .btn-maya {
+            background: linear-gradient(90deg, #1f2937 0%, #000000 100%); 
+            color: white;
+            border: 1px solid #374151;
+        }
+        
+        .btn-maya span {
+            color: #4ade80; 
+        }
+
+        /* Animations */
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        .slide-up { animation: slideUp 0.4s ease-out; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* Loader */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Admin Specific Styles */
+        .admin-sidebar-link:hover {
+            background-color: #f3f4f6;
+            color: #2563eb;
+        }
+        .admin-sidebar-link.active {
+            background-color: #eff6ff;
+            color: #2563eb;
+            border-right: 3px solid #2563eb;
+        }
+
+        /* Wheel Styles */
+        #wheel-container {
+            position: relative;
+            display: inline-block;
+        }
+        #wheel-pointer {
+            position: absolute;
+            top: 50%;
+            right: -20px;
+            transform: translateY(-50%);
+            width: 0; 
+            height: 0; 
+            border-top: 15px solid transparent;
+            border-bottom: 15px solid transparent;
+            border-right: 30px solid #1f2937;
+            z-index: 10;
+        }
+
+        /* Dark Mode Variables & Overrides */
+        :root {
+            --bg: #f3f4f6;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --card: #ffffff;
+            --border: #e5e7eb;
+            --accent: #60a5fa;
+        }
+        .dark {
+            --bg: #0b1220;
+            --text: #e6eef8;
+            --muted: #9aa4b2;
+            --card: #0f1724;
+            --border: #1f2937;
+            --accent: #60a5fa;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            transition: background-color 200ms ease, color 200ms ease;
+        }
+
+        /* Common utility overrides for components built with Tailwind classes */
+        .dark .bg-white { background-color: var(--card) !important; color: var(--text) !important; }
+        .dark .bg-gray-50, .dark .bg-gray-100, .dark .bg-gray-200 { background-color: rgba(255,255,255,0.02) !important; }
+        .dark .text-gray-800, .dark .text-gray-900 { color: var(--text) !important; }
+        .dark .text-gray-500, .dark .text-gray-400, .dark .text-gray-600 { color: var(--muted) !important; }
+        .dark .border-gray-100, .dark .border-gray-200, .dark .border-gray-300 { border-color: var(--border) !important; }
+
+        .dark .admin-sidebar-link:hover { background-color: rgba(255,255,255,0.03); }
+        .dark .loader { border-top-color: var(--accent); }
+        .dark .ticket-cutout::before, .dark .ticket-cutout::after { background-color: var(--bg); }
+
+        /* Dark mode toggle button */
+        #dark-mode-toggle { transition: transform 120ms ease, background-color 120ms ease; }
+        #dark-mode-toggle:active { transform: scale(0.98); }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Navbar (Shared) -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-2 cursor-pointer" onclick="app.switchView('user')">
+                    <div class="bg-blue-600 text-white p-2 rounded-lg">
+                        <i class="fa-solid fa-ticket"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-blue-900">swifttix <span class="text-xs text-blue-500 font-normal uppercase ml-1 border border-blue-200 px-1 rounded">ICAMTICKETING SYSTEM</span></span>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <!-- Auth Section (Dynamic) -->
+                    <div id="nav-auth-section" class="flex items-center gap-3">
+                        <!-- Content injected via JS based on login state -->
+                        <button onclick="app.openAuthModal('login')" class="text-sm font-semibold text-gray-600 hover:text-blue-600 transition">Log In</button>
+                        <button onclick="app.openAuthModal('register')" class="bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-full hover:bg-blue-700 transition shadow-md shadow-blue-200">Register</button>
+                    </div>
+
+                    <!-- Dark Mode Toggle -->
+                    <button id="dark-mode-toggle" onclick="app.toggleDarkMode()" class="text-sm font-semibold text-gray-500 hover:text-yellow-400 transition px-3 py-1 rounded-full border border-gray-200 hover:border-yellow-400" title="Switch to Dark Mode" aria-pressed="false">
+                        <i id="dark-mode-icon" class="fa-solid fa-moon"></i>
+                    </button>
+
+                    <div class="h-6 w-px bg-gray-200 mx-1"></div>
+
+                    <!-- Admin Toggle -->
+                    <button id="admin-toggle" onclick="app.toggleAdminLogin()" class="text-sm font-semibold text-gray-500 hover:text-blue-600 transition px-3 py-1 rounded-full border border-gray-200 hover:border-blue-600" title="School Admin Access">
+                        <i class="fa-solid fa-lock"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- USER VIEW CONTAINER -->
+    <div id="user-view" class="fade-in">
+        <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen">
+            
+            <!-- Welcome Banner (Only visible if logged in) -->
+            <div id="user-welcome-banner" class="hidden mb-8 fade-in">
+                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-6 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">Welcome back, <span id="welcome-user-name" class="text-blue-600">Student</span>!</h2>
+                        <p class="text-gray-500 text-sm mt-1">Ready to explore the upcoming school events?</p>
+                    </div>
+                    <div class="hidden sm:block text-4xl text-blue-200">
+                        <i class="fa-solid fa-id-card"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event Filter -->
+            <div id="filters" class="flex gap-3 overflow-x-auto pb-4 mb-6 scrollbar-hide">
+                <button onclick="app.filterEvents('All')" class="px-4 py-1.5 bg-blue-600 text-white rounded-full text-sm font-medium whitespace-nowrap transition filter-btn">All Events</button>
+                <button onclick="app.filterEvents('Sports')" class="px-4 py-1.5 bg-white text-gray-600 border border-gray-200 hover:border-blue-300 rounded-full text-sm font-medium whitespace-nowrap transition filter-btn">Sports</button>
+                <button onclick="app.filterEvents('Arts')" class="px-4 py-1.5 bg-white text-gray-600 border border-gray-200 hover:border-blue-300 rounded-full text-sm font-medium whitespace-nowrap transition filter-btn">Arts & Theater</button>
+                <button onclick="app.filterEvents('Academic')" class="px-4 py-1.5 bg-white text-gray-600 border border-gray-200 hover:border-blue-300 rounded-full text-sm font-medium whitespace-nowrap transition filter-btn">Academic</button>
+            </div>
+
+            <!-- Events Grid -->
+            <div id="events-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Events injected via JS -->
+            </div>
+            
+             <div id="no-events-msg" class="hidden text-center py-20">
+                <div class="bg-white p-8 rounded-2xl shadow-sm inline-block max-w-md">
+                    <i class="fa-regular fa-calendar-plus text-5xl text-blue-200 mb-4"></i>
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">No Events Yet</h3>
+                    <p class="text-gray-500 mb-6">The event calendar is currently empty. Please login as Admin to post new school activities.</p>
+                    <button onclick="app.toggleAdminLogin()" class="text-blue-600 font-semibold hover:underline">
+                        Go to Admin Login
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ADMIN VIEW CONTAINER (Hidden by default) -->
+    <div id="admin-view" class="hidden fade-in bg-gray-50 min-h-screen">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <div class="flex flex-col md:flex-row gap-6">
+                <!-- Sidebar -->
+                <aside class="w-full md:w-64 flex-shrink-0">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                        <div class="flex items-center gap-3 mb-6 px-2">
+                            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                                <i class="fa-solid fa-user-shield"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-sm">School Admin</h3>
+                                <p class="text-xs text-gray-500">Logged in</p>
+                            </div>
+                        </div>
+                        <nav class="space-y-1">
+                            <a href="#" onclick="app.switchAdminTab('dashboard')" id="nav-admin-dashboard" class="admin-sidebar-link active block px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-3">
+                                <i class="fa-solid fa-gauge"></i> Dashboard
+                            </a>
+                            <a href="#" onclick="app.switchAdminTab('wheel')" id="nav-admin-wheel" class="admin-sidebar-link block px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-3">
+                                <i class="fa-solid fa-dharmachakra"></i> Raffle Wheel
+                            </a>
+                            <div class="border-t border-gray-100 my-2"></div>
+                            <a href="#" onclick="app.switchView('user')" class="admin-sidebar-link block px-3 py-2 rounded-lg text-sm font-medium text-gray-600 transition flex items-center gap-3">
+                                <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout / View Site
+                            </a>
+                        </nav>
+                    </div>
+                </aside>
+
+                <!-- Admin Content -->
+                <main class="flex-1">
+                    
+                    <!-- TAB 1: DASHBOARD -->
+                    <div id="admin-tab-dashboard" class="admin-tab-content">
+                        <!-- Stats Cards -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                                <p class="text-xs text-gray-500 uppercase font-bold mb-1">Total Events</p>
+                                <h3 class="text-2xl font-bold text-gray-800" id="admin-total-events">0</h3>
+                            </div>
+                            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                                <p class="text-xs text-gray-500 uppercase font-bold mb-1">Tickets Sold (Sim)</p>
+                                <h3 class="text-2xl font-bold text-blue-600" id="admin-tickets-sold">0</h3>
+                            </div>
+                            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                                <p class="text-xs text-gray-500 uppercase font-bold mb-1">Total Revenue</p>
+                                <h3 class="text-2xl font-bold text-green-600">₱0</h3>
+                            </div>
+                        </div>
+
+                        <!-- Event Management -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div class="p-6 border-b border-gray-100 flex justify-between items-center flex-wrap gap-4">
+                                <div>
+                                    <h2 class="text-lg font-bold text-gray-800">Event Management</h2>
+                                    <p class="text-sm text-gray-500">Create, edit, and remove school events.</p>
+                                </div>
+                                <button onclick="app.openAddEventModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition flex items-center gap-2 shadow-lg shadow-blue-200">
+                                    <i class="fa-solid fa-plus"></i> Create Event
+                                </button>
+                            </div>
+                            
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                                            <th class="p-4 font-semibold">Event Name</th>
+                                            <th class="p-4 font-semibold">Date & Org</th>
+                                            <th class="p-4 font-semibold">Price</th>
+                                            <th class="p-4 font-semibold text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-events-table" class="divide-y divide-gray-100 text-sm">
+                                        <!-- Admin rows injected here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="admin-empty-state" class="hidden p-8 text-center">
+                                <p class="text-gray-400">No events created yet.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: RAFFLE WHEEL -->
+                    <div id="admin-tab-wheel" class="hidden admin-tab-content">
+                        <div class="flex flex-col lg:flex-row gap-6">
+                            <!-- Wheel Section -->
+                            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex-1 flex flex-col items-center justify-center">
+                                <div class="text-center mb-4">
+                                    <h2 class="text-lg font-bold text-gray-800">Spin the Wheel</h2>
+                                    <p class="text-sm text-gray-500">Select a winner randomly.</p>
+                                </div>
+                                
+                                <div id="wheel-container" class="mb-6 scale-90 sm:scale-100">
+                                    <div id="wheel-pointer"></div>
+                                    <canvas id="wheelCanvas" width="400" height="400"></canvas>
+                                </div>
+
+                                <button onclick="app.spinWheel()" id="spin-btn" class="bg-indigo-600 text-white px-8 py-3 rounded-full font-bold text-lg shadow-lg hover:bg-indigo-700 transition transform hover:scale-105 active:scale-95">
+                                    SPIN!
+                                </button>
+                                
+                                <div id="winner-display" class="mt-6 text-center h-16">
+                                    <p class="text-gray-400 text-sm">Winner:</p>
+                                    <h3 class="text-2xl font-bold text-indigo-600" id="winner-name">---</h3>
+                                    <div class="mt-2 hidden" id="winner-actions">
+                                        <button id="remove-winner-btn" onclick="app.removeWinner()" class="text-sm bg-red-50 text-red-600 px-3 py-1 rounded-full hover:bg-red-100 transition">Remove Winner</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Controls Section -->
+                            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 w-full lg:w-80">
+                                <h3 class="font-bold text-gray-800 mb-3">Participants</h3>
+                                <div class="flex gap-2 mb-3">
+                                    <button onclick="app.quickFillNames()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs py-2 rounded transition">Quick Fill</button>
+                                    <button onclick="app.clearNames()" class="flex-1 bg-red-50 hover:bg-red-100 text-red-600 text-xs py-2 rounded transition">Clear All</button>
+                                </div>
+                                <textarea id="wheel-names-input" oninput="app.updateWheel()" class="w-full h-64 border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none" placeholder="Enter names here, one per line..."></textarea>
+                                <p class="text-xs text-gray-400 mt-2 text-center">Separate names with a new line.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTH MODAL (Login / Register) -->
+    <div id="auth-modal" class="fixed inset-0 bg-black bg-opacity-60 z-[90] hidden flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl slide-up">
+            <!-- Modal Header Tabs -->
+            <div class="flex border-b border-gray-100">
+                <button onclick="app.switchAuthMode('login')" id="tab-login" class="flex-1 py-4 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition">Log In</button>
+                <button onclick="app.switchAuthMode('register')" id="tab-register" class="flex-1 py-4 text-sm font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition">Register</button>
+                <button onclick="app.closeModal('auth-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                     <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-8">
+                <!-- LOGIN FORM -->
+                <form id="auth-form-login" onsubmit="app.handleLogin(event)" class="space-y-4">
+                    <div class="text-center mb-6">
+                        <h3 class="text-xl font-bold text-gray-800">Welcome Back</h3>
+                        <p class="text-gray-500 text-sm">Log in to your school account.</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">School ID Number</label>
+                        <input type="text" name="idNumber" required class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g. 2026-00123">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
+                        <input type="password" name="password" required class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="••••••••">
+                    </div>
+
+                    <p id="login-feedback" class="text-red-500 text-sm text-center hidden"></p>
+
+                    <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-200 mt-2">
+                        Log In
+                    </button>
+                </form>
+
+                <!-- REGISTER FORM -->
+                <form id="auth-form-register" onsubmit="app.handleRegister(event)" class="space-y-4 hidden">
+                    <div class="text-center mb-6">
+                        <h3 class="text-xl font-bold text-gray-800">Create Account</h3>
+                        <p class="text-gray-500 text-sm">Join the campus community.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Full Name</label>
+                        <input type="text" name="name" required class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g. Juan Dela Cruz">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Role</label>
+                             <select name="role" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                                 <option value="Student">Student</option>
+                                 <option value="Staff">Staff</option>
+                                 <option value="Faculty">Faculty</option>
+                             </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">School ID</label>
+                            <input type="text" name="idNumber" required class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="ID No.">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
+                        <input type="password" name="password" required class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Create a password">
+                    </div>
+
+                    <p id="register-feedback" class="text-red-500 text-sm text-center hidden"></p>
+
+                    <button type="submit" class="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition mt-2">
+                        Register
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div id="admin-login-modal" class="fixed inset-0 bg-black bg-opacity-60 z-[80] hidden flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl slide-up p-8 text-center">
+            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 text-2xl mx-auto mb-4">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Admin Access</h3>
+            <p class="text-gray-500 text-sm mb-6">Please enter the administrator password.</p>
+            
+            <input type="password" id="admin-password" class="w-full text-center text-2xl tracking-widest border border-gray-300 rounded-lg px-4 py-3 mb-4 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="••••">
+            <p id="login-error" class="text-red-500 text-xs mb-4 hidden">Incorrect password.</p>
+            
+            <button onclick="app.verifyAdmin()" class="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition">
+                Login
+            </button>
+            <button onclick="app.closeModal('admin-login-modal')" class="mt-4 text-sm text-gray-500 hover:text-gray-800">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Add Event Modal -->
+    <div id="add-event-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[70] hidden flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl slide-up max-h-[90vh] overflow-y-auto">
+            <div class="bg-gray-50 px-6 py-4 border-b flex justify-between items-center sticky top-0 bg-gray-50 z-10">
+                <h3 class="font-bold text-lg text-gray-800">Create New Event</h3>
+                <button onclick="app.closeModal('add-event-modal')" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="create-event-form" onsubmit="app.handleCreateEvent(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Event Title</label>
+                    <input type="text" name="title" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g. Battle of the Bands">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                        <input type="text" name="date" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g. March 15, 2026">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                        <input type="text" name="time" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g. 6:00 PM">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Venue</label>
+                    <input type="text" name="venue" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g. School Gym">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Price (₱)</label>
+                        <input type="number" name="price" required min="0" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                        <select name="category" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                            <option value="Sports">Sports</option>
+                            <option value="Arts">Arts & Theater</option>
+                            <option value="Academic">Academic</option>
+                            <option value="Social">Social</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Organizing Body</label>
+                    <input type="text" name="org" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="e.g. Student Council">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                    <input type="url" name="image" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="https://..." value="https://images.unsplash.com/photo-1523580494863-6f3031224c94?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80">
+                    <p class="text-xs text-gray-400 mt-1">Paste a direct image link.</p>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-200">
+                        Create Event
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Checkout Modal (Hidden) -->
+    <div id="checkout-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl slide-up">
+            <!-- Modal Header -->
+            <div class="bg-gray-50 px-6 py-4 border-b flex justify-between items-center">
+                <h3 class="font-bold text-lg text-gray-800">Review & Pay</h3>
+                <button onclick="app.closeModal('checkout-modal')" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 space-y-6">
+                <!-- Order Summary -->
+                <div class="flex gap-4">
+                    <div id="checkout-img" class="w-20 h-20 rounded-lg bg-gray-200 bg-cover bg-center shrink-0"></div>
+                    <div>
+                        <h4 id="checkout-title" class="font-bold text-gray-900 leading-tight">Event Title</h4>
+                        <p id="checkout-date" class="text-sm text-gray-500 mt-1">Date & Time</p>
+                        <p id="checkout-venue" class="text-sm text-gray-500">Venue</p>
+                    </div>
+                </div>
+
+                <div class="border-t border-dashed border-gray-300 my-2"></div>
+
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-gray-600">Ticket Type</span>
+                    <span id="checkout-type" class="font-medium text-gray-900">Regular</span>
+                </div>
+                
+                <!-- NEW: Buyer Info -->
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-gray-600">Buyer</span>
+                    <span id="checkout-buyer" class="font-medium text-gray-900">Guest</span>
+                </div>
+
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-gray-600">Quantity</span>
+                    <div class="flex items-center gap-3">
+                        <button onclick="app.updateQty(-1)" class="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center">-</button>
+                        <span id="checkout-qty" class="font-bold w-4 text-center">1</span>
+                        <button onclick="app.updateQty(1)" class="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center">+</button>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-xl flex justify-between items-center">
+                    <span class="font-semibold text-gray-700">Total Amount</span>
+                    <span id="checkout-total" class="font-bold text-2xl text-blue-600">₱0.00</span>
+                </div>
+
+                <!-- Payment Methods -->
+                <div>
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Select Payment Method</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="app.processPayment('gcash')" class="btn-gcash py-3 px-4 rounded-xl font-medium shadow-sm hover:opacity-90 transition flex items-center justify-center gap-2 group relative overflow-hidden">
+                            <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition"></div>
+                            <i class="fa-solid fa-wallet"></i> GCash
+                        </button>
+                        <button onclick="app.processPayment('maya')" class="btn-maya py-3 px-4 rounded-xl font-medium shadow-sm hover:opacity-90 transition flex items-center justify-center gap-2 relative group overflow-hidden">
+                            <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition"></div>
+                            <i class="fa-solid fa-credit-card"></i> <span>Maya</span>
+                        </button>
+                    </div>
+                    <p class="text-center text-xs text-gray-400 mt-3 flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-lock"></i> Secured by School Gateway
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Processing Modal (Hidden) -->
+    <div id="processing-modal" class="fixed inset-0 bg-white z-[60] hidden flex flex-col items-center justify-center text-center p-8">
+        <div class="loader mb-6"></div>
+        <h3 class="text-xl font-bold text-gray-800 mb-2">Connecting to <span id="gateway-name">Gateway</span>...</h3>
+        <p class="text-gray-500 max-w-xs mx-auto">Please confirm the transaction on your mobile device.</p>
+    </div>
+
+    <!-- Ticket Success Modal (Hidden) -->
+    <div id="ticket-modal" class="fixed inset-0 bg-gray-900 z-[60] hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="w-full max-w-md slide-up my-auto">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center text-white text-3xl mx-auto mb-4 shadow-lg shadow-green-500/30">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <h2 class="text-white text-2xl font-bold">Ticket Confirmed!</h2>
+                <p class="text-gray-400 text-sm">See you at the event.</p>
+            </div>
+
+            <!-- The Ticket -->
+            <div class="bg-white rounded-3xl overflow-hidden shadow-2xl">
+                <!-- Ticket Header (Image) -->
+                <div id="ticket-img-container" class="h-48 bg-cover bg-center relative">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                    <div class="absolute bottom-4 left-6 text-white">
+                        <span id="ticket-event-type" class="bg-white/20 backdrop-blur-md px-2 py-1 rounded text-xs font-bold uppercase tracking-wide">Event</span>
+                        <h3 id="ticket-event-title" class="text-2xl font-bold mt-1 shadow-black drop-shadow-md">Event Title</h3>
+                    </div>
+                </div>
+
+                <!-- Ticket Body -->
+                <div class="ticket-cutout p-6 pb-8">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase font-bold">Date & Time</p>
+                            <p id="ticket-datetime" class="font-semibold text-gray-800">Oct 24, 2026 • 7:00 PM</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-gray-400 uppercase font-bold">Venue</p>
+                            <p id="ticket-venue" class="font-semibold text-gray-800">Arena</p>
+                        </div>
+                    </div>
+                    
+                    <!-- NEW: Attendee Name -->
+                    <div class="mb-4 pb-4 border-b border-gray-100">
+                        <p class="text-xs text-gray-400 uppercase font-bold">Attendee</p>
+                        <p id="ticket-attendee" class="font-bold text-gray-800 text-lg">Juan Dela Cruz</p>
+                    </div>
+
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase font-bold">Admit</p>
+                            <p id="ticket-qty" class="text-xl font-bold text-gray-800">1 Person</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-gray-400 uppercase font-bold">Total Paid</p>
+                            <p id="ticket-price" class="text-xl font-bold text-blue-600">₱0.00</p>
+                        </div>
+                    </div>
+
+                    <div class="relative h-1 w-full my-6">
+                         <div class="absolute w-full border-t-2 border-dashed border-gray-300"></div>
+                    </div>
+
+                    <div class="text-center">
+                        <p class="text-xs text-gray-400 mb-3">Present this to the usher</p>
+                        <div class="bg-white p-2 border-2 border-gray-100 rounded-xl inline-block">
+                            <div class="w-40 h-40 bg-gray-900 grid grid-cols-6 grid-rows-6 gap-0.5 p-1 rounded-lg">
+                                <div class="bg-white col-span-2 row-span-2"></div>
+                                <div class="bg-white col-span-2 row-span-2 col-start-5"></div>
+                                <div class="bg-white col-span-2 row-span-2 row-start-5"></div>
+                                <div class="bg-white col-span-1 row-span-1 col-start-3 row-start-3"></div>
+                                <div class="bg-white col-span-1 row-span-1 col-start-4 row-start-4"></div>
+                            </div>
+                        </div>
+                        <p id="ticket-id" class="text-xs text-gray-400 mt-2 font-mono tracking-widest">ID: 8X29-AF33</p>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-between items-center">
+                    <button onclick="app.closeModal('ticket-modal')" class="text-sm font-semibold text-gray-500 hover:text-gray-800">Close</button>
+                    <button onclick="alert('Ticket downloaded!')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition flex items-center gap-2">
+                        <i class="fa-solid fa-download"></i> Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initial Mock Data - Empty as requested
+        const initialEvents = [];
+
+        // Application Logic
+        const app = {
+            state: {
+                events: [],
+                users: [], // New: Store registered users
+                currentUser: null, // New: Currently logged in user
+                selectedEvent: null,
+                quantity: 1,
+                currentFilter: 'All',
+                // Wheel State
+                wheelNames: ['Student 1', 'Student 2', 'Student 3'],
+                wheelColors: ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'],
+                currentRotation: 0,
+                wheelContext: null,
+                // Wheel UI state
+                isSpinning: false,
+                lastWinnerIndex: null,
+                highlightIndex: null
+            },
+
+            // Easing helper
+            easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); },
+
+            init() {
+                // Load events
+                const storedEvents = localStorage.getItem('swiftTixSchoolEvents_v2'); 
+                if (storedEvents) {
+                    this.state.events = JSON.parse(storedEvents);
+                } else {
+                    this.state.events = initialEvents;
+                    this.saveEvents();
+                }
+
+                // Load Users
+                const storedUsers = localStorage.getItem('swiftTixUsers');
+                if (storedUsers) {
+                    this.state.users = JSON.parse(storedUsers);
+                }
+
+                // Check Session (Simple persistence)
+                const sessionUser = localStorage.getItem('swiftTixCurrentUser');
+                if (sessionUser) {
+                    this.state.currentUser = JSON.parse(sessionUser);
+                }
+
+                this.renderNavbar();
+                this.renderEvents();
+                this.updateAdminStats();
+
+                // Apply Dark Mode Preference
+                this.applyDarkMode();
+
+                // Init Wheel Canvas (handles high DPI)
+                this.setupWheelCanvas();
+                window.addEventListener('resize', () => {
+                    this.setupWheelCanvas();
+                    this.drawWheel();
+                });
+            },
+
+            saveEvents() {
+                localStorage.setItem('swiftTixSchoolEvents_v2', JSON.stringify(this.state.events));
+                this.updateAdminStats();
+            },
+
+            saveUsers() {
+                localStorage.setItem('swiftTixUsers', JSON.stringify(this.state.users));
+            },
+
+            // --- AUTHENTICATION LOGIC ---
+            
+            openAuthModal(mode) {
+                document.getElementById('auth-modal').classList.remove('hidden');
+                this.switchAuthMode(mode);
+                // Reset Forms
+                document.getElementById('auth-form-login').reset();
+                document.getElementById('auth-form-register').reset();
+                document.getElementById('login-feedback').classList.add('hidden');
+                document.getElementById('register-feedback').classList.add('hidden');
+            },
+
+            switchAuthMode(mode) {
+                const loginForm = document.getElementById('auth-form-login');
+                const registerForm = document.getElementById('auth-form-register');
+                const tabLogin = document.getElementById('tab-login');
+                const tabRegister = document.getElementById('tab-register');
+
+                if (mode === 'login') {
+                    loginForm.classList.remove('hidden');
+                    registerForm.classList.add('hidden');
+                    
+                    tabLogin.classList.add('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+                    tabLogin.classList.remove('text-gray-500', 'hover:text-gray-700', 'hover:bg-gray-50');
+                    
+                    tabRegister.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+                    tabRegister.classList.add('text-gray-500', 'hover:text-gray-700', 'hover:bg-gray-50');
+                } else {
+                    loginForm.classList.add('hidden');
+                    registerForm.classList.remove('hidden');
+
+                    tabRegister.classList.add('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+                    tabRegister.classList.remove('text-gray-500', 'hover:text-gray-700', 'hover:bg-gray-50');
+                    
+                    tabLogin.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+                    tabLogin.classList.add('text-gray-500', 'hover:text-gray-700', 'hover:bg-gray-50');
+                }
+            },
+
+            handleRegister(e) {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const name = formData.get('name');
+                const role = formData.get('role');
+                const idNumber = formData.get('idNumber');
+                const password = formData.get('password');
+
+                // Basic Validation
+                if (this.state.users.some(u => u.idNumber === idNumber)) {
+                    const fb = document.getElementById('register-feedback');
+                    fb.innerText = "This ID Number is already registered.";
+                    fb.classList.remove('hidden');
+                    return;
+                }
+
+                // Create User
+                const newUser = {
+                    id: Date.now(),
+                    name,
+                    role,
+                    idNumber,
+                    password 
+                };
+
+                this.state.users.push(newUser);
+                this.saveUsers();
+
+                // Auto Login
+                this.loginUser(newUser);
+                this.closeModal('auth-modal');
+                alert(`Welcome, ${name}! Your account has been created.`);
+            },
+
+            handleLogin(e) {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const idNumber = formData.get('idNumber');
+                const password = formData.get('password');
+
+                const user = this.state.users.find(u => u.idNumber === idNumber && u.password === password);
+
+                if (user) {
+                    this.loginUser(user);
+                    this.closeModal('auth-modal');
+                } else {
+                    const fb = document.getElementById('login-feedback');
+                    fb.innerText = "Invalid ID Number or Password.";
+                    fb.classList.remove('hidden');
+                }
+            },
+
+            loginUser(user) {
+                this.state.currentUser = user;
+                localStorage.setItem('swiftTixCurrentUser', JSON.stringify(user));
+                this.renderNavbar();
+                this.renderEvents(); // Re-render to potentially update UI based on role?
+            },
+
+            logoutUser() {
+                this.state.currentUser = null;
+                localStorage.removeItem('swiftTixCurrentUser');
+                this.renderNavbar();
+                this.renderEvents();
+                // Hide welcome banner
+                document.getElementById('user-welcome-banner').classList.add('hidden');
+            },
+
+            renderNavbar() {
+                const navSection = document.getElementById('nav-auth-section');
+                const welcomeBanner = document.getElementById('user-welcome-banner');
+
+                if (this.state.currentUser) {
+                    // Logged In State
+                    const user = this.state.currentUser;
+                    
+                    // Badge Color based on Role
+                    let badgeColor = "bg-blue-100 text-blue-700";
+                    if(user.role === 'Staff') badgeColor = "bg-purple-100 text-purple-700";
+                    if(user.role === 'Faculty') badgeColor = "bg-orange-100 text-orange-700";
+
+                    navSection.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <div class="text-right hidden sm:block">
+                                <p class="text-sm font-bold text-gray-800 leading-tight">${user.name}</p>
+                                <span class="text-xs px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${badgeColor}">${user.role}</span>
+                            </div>
+                            <button onclick="app.logoutUser()" class="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition" title="Logout">
+                                <i class="fa-solid fa-power-off"></i>
+                            </button>
+                        </div>
+                    `;
+                    
+                    // Show Welcome Banner
+                    document.getElementById('welcome-user-name').innerText = user.name;
+                    welcomeBanner.classList.remove('hidden');
+
+                } else {
+                    // Logged Out State
+                    navSection.innerHTML = `
+                        <button onclick="app.openAuthModal('login')" class="text-sm font-semibold text-gray-600 hover:text-blue-600 transition">Log In</button>
+                        <button onclick="app.openAuthModal('register')" class="bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-full hover:bg-blue-700 transition shadow-md shadow-blue-200">Register</button>
+                    `;
+                    welcomeBanner.classList.add('hidden');
+                }
+            },
+
+            // --- DARK MODE HANDLERS ---
+            applyDarkMode() {
+                const isDark = localStorage.getItem('swifttix_dark_mode') === 'true';
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+                const icon = document.getElementById('dark-mode-icon');
+                const btn = document.getElementById('dark-mode-toggle');
+                if (icon && btn) {
+                    if (isDark) {
+                        icon.className = 'fa-solid fa-sun';
+                        btn.title = 'Switch to Light Mode';
+                        btn.setAttribute('aria-pressed', 'true');
+                    } else {
+                        icon.className = 'fa-solid fa-moon';
+                        btn.title = 'Switch to Dark Mode';
+                        btn.setAttribute('aria-pressed', 'false');
+                    }
+                }
+            },
+
+            toggleDarkMode() {
+                const isCurrentlyDark = document.documentElement.classList.contains('dark');
+                localStorage.setItem('swifttix_dark_mode', (!isCurrentlyDark).toString());
+                this.applyDarkMode();
+            },
+
+            // --- VIEW MANAGEMENT ---
+            switchView(viewName) {
+                const userView = document.getElementById('user-view');
+                const adminView = document.getElementById('admin-view');
+                const navSearch = document.getElementById('nav-user-search');
+
+                if (viewName === 'admin') {
+                    userView.classList.add('hidden');
+                    adminView.classList.remove('hidden');
+                    if(navSearch) navSearch.classList.add('hidden');
+                    // Default to dashboard when logging in
+                    this.switchAdminTab('dashboard');
+                } else {
+                    userView.classList.remove('hidden');
+                    adminView.classList.add('hidden');
+                    if(navSearch) navSearch.classList.remove('hidden');
+                    this.renderEvents(); 
+                }
+                window.scrollTo(0,0);
+            },
+
+            switchAdminTab(tabName) {
+                // Hide all tabs
+                document.querySelectorAll('.admin-tab-content').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('.admin-sidebar-link').forEach(el => el.classList.remove('active', 'bg-blue-50', 'border-blue-500'));
+                
+                // Show selected tab
+                document.getElementById(`admin-tab-${tabName}`).classList.remove('hidden');
+                document.getElementById(`nav-admin-${tabName}`).classList.add('active');
+
+                if (tabName === 'dashboard') {
+                    this.renderAdminTable();
+                } else if (tabName === 'wheel') {
+                    // Initial Wheel Draw
+                    document.getElementById('wheel-names-input').value = this.state.wheelNames.join('\n');
+                    this.drawWheel();
+                }
+            },
+
+            toggleAdminLogin() {
+                document.getElementById('admin-login-modal').classList.remove('hidden');
+                document.getElementById('login-error').classList.add('hidden');
+                document.getElementById('admin-password').value = '';
+                document.getElementById('admin-password').focus();
+            },
+
+            verifyAdmin() {
+                const pass = document.getElementById('admin-password').value;
+                if (pass === 'admin123') {
+                    this.closeModal('admin-login-modal');
+                    this.switchView('admin');
+                } else {
+                    document.getElementById('login-error').classList.remove('hidden');
+                }
+            },
+
+            // --- EVENT RENDERING (USER) ---
+            renderEvents() {
+                const container = document.getElementById('events-grid');
+                const filter = this.state.currentFilter;
+                
+                const filteredEvents = filter === 'All' 
+                    ? this.state.events 
+                    : this.state.events.filter(e => e.category === filter);
+
+                if (filteredEvents.length === 0) {
+                    container.innerHTML = '';
+                    document.getElementById('no-events-msg').classList.remove('hidden');
+                    return;
+                }
+
+                document.getElementById('no-events-msg').classList.add('hidden');
+
+                container.innerHTML = filteredEvents.map(event => `
+                    <div class="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition duration-300 group border border-gray-100 flex flex-col h-full">
+                        <div class="h-48 overflow-hidden relative">
+                            <img src="${event.image}" onerror="this.src='https://placehold.co/600x400?text=No+Image'" alt="${event.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <div class="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-lg text-sm font-bold text-gray-800 shadow-sm">
+                                ${event.price == 0 ? 'Free' : '₱' + parseInt(event.price).toLocaleString()}
+                            </div>
+                        </div>
+                        <div class="p-5 flex-1 flex flex-col">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-xs font-bold text-blue-600 uppercase tracking-wide">${event.category}</span>
+                                <span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">${event.org || 'School'}</span>
+                            </div>
+                            <h3 class="font-bold text-xl text-gray-900 mb-2 leading-tight">${event.title}</h3>
+                            <div class="space-y-2 mb-4 text-sm text-gray-500">
+                                <div class="flex items-center gap-2">
+                                    <i class="fa-regular fa-calendar w-4"></i> ${event.date} • ${event.time}
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <i class="fa-solid fa-location-dot w-4"></i> ${event.venue}
+                                </div>
+                            </div>
+                            <div class="mt-auto">
+                                <button onclick="app.openCheckout(${event.id})" class="w-full bg-gray-900 text-white py-2.5 rounded-xl font-semibold hover:bg-gray-800 transition shadow-lg shadow-gray-200 active:scale-95 transform duration-150">
+                                    Buy Ticket
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            filterEvents(category) {
+                this.state.currentFilter = category;
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    if(btn.innerText.includes(category) || (category === 'All' && btn.innerText.includes('All'))) {
+                        btn.classList.remove('bg-white', 'text-gray-600', 'border-gray-200');
+                        btn.classList.add('bg-blue-600', 'text-white');
+                    } else {
+                        btn.classList.add('bg-white', 'text-gray-600', 'border-gray-200');
+                        btn.classList.remove('bg-blue-600', 'text-white');
+                    }
+                });
+                this.renderEvents();
+            },
+
+            // --- ADMIN LOGIC ---
+            renderAdminTable() {
+                const tbody = document.getElementById('admin-events-table');
+                const emptyState = document.getElementById('admin-empty-state');
+
+                if (this.state.events.length === 0) {
+                    tbody.innerHTML = '';
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
+
+                emptyState.classList.add('hidden');
+                tbody.innerHTML = this.state.events.map(event => `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="p-4">
+                            <div class="font-bold text-gray-900">${event.title}</div>
+                            <div class="text-xs text-gray-400">${event.category}</div>
+                        </td>
+                        <td class="p-4">
+                            <div class="text-sm text-gray-600">${event.date}</div>
+                            <div class="text-xs text-gray-400 bg-gray-100 inline-block px-1 rounded">${event.org || '-'}</div>
+                        </td>
+                        <td class="p-4 font-medium text-gray-900">
+                             ${event.price == 0 ? 'Free' : '₱' + parseInt(event.price).toLocaleString()}
+                        </td>
+                        <td class="p-4 text-right">
+                            <button onclick="app.deleteEvent(${event.id})" class="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+                
+                this.updateAdminStats();
+            },
+
+            openAddEventModal() {
+                document.getElementById('create-event-form').reset();
+                document.getElementById('add-event-modal').classList.remove('hidden');
+            },
+
+            handleCreateEvent(e) {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                
+                const newEvent = {
+                    id: Date.now(),
+                    title: formData.get('title'),
+                    date: formData.get('date'),
+                    time: formData.get('time'),
+                    venue: formData.get('venue'),
+                    price: parseFloat(formData.get('price')),
+                    category: formData.get('category'),
+                    org: formData.get('org'),
+                    image: formData.get('image') || "https://placehold.co/600x400?text=Event",
+                    description: "School event."
+                };
+
+                this.state.events.unshift(newEvent);
+                this.saveEvents();
+                this.closeModal('add-event-modal');
+                this.renderAdminTable();
+                alert('Event Created Successfully!');
+            },
+
+            deleteEvent(id) {
+                if(confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
+                    this.state.events = this.state.events.filter(e => e.id !== id);
+                    this.saveEvents();
+                    this.renderAdminTable();
+                }
+            },
+
+            updateAdminStats() {
+                document.getElementById('admin-total-events').innerText = this.state.events.length;
+                document.getElementById('admin-tickets-sold').innerText = this.state.events.length > 0 ? Math.floor(Math.random() * 500) + 100 : 0;
+            },
+
+            // --- WHEEL OF NAMES LOGIC ---
+            updateWheel() {
+                const text = document.getElementById('wheel-names-input').value;
+                this.state.wheelNames = text.split('\n').filter(name => name.trim() !== '');
+                // Reset winner indicators when list changes
+                this.state.highlightIndex = null;
+                this.state.lastWinnerIndex = null;
+                const winnerNameEl = document.getElementById('winner-name');
+                if (winnerNameEl) winnerNameEl.innerText = '---';
+                const actionsEl = document.getElementById('winner-actions');
+                if (actionsEl) actionsEl.classList.add('hidden');
+                this.drawWheel();
+            },
+
+            setupWheelCanvas() {
+                const canvas = document.getElementById('wheelCanvas');
+                if (!canvas) return;
+                const dpr = window.devicePixelRatio || 1;
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = Math.round(rect.width * dpr);
+                canvas.height = Math.round(rect.height * dpr);
+                canvas.style.width = rect.width + 'px';
+                canvas.style.height = rect.height + 'px';
+                const ctx = canvas.getContext('2d');
+                // Scale drawing operations so 1 unit = 1 CSS pixel
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                this.state.wheelContext = ctx;
+            },
+
+            clearNames() {
+                document.getElementById('wheel-names-input').value = '';
+                this.state.wheelNames = [];
+                this.state.highlightIndex = null;
+                this.state.lastWinnerIndex = null;
+                document.getElementById('winner-name').innerText = '---';
+                document.getElementById('winner-actions').classList.add('hidden');
+                this.drawWheel();
+            },
+
+            quickFillNames() {
+                const mockNames = ["Juan Dela Cruz", "Maria Clara", "Jose Rizal", "Andres B.", "Gabriela S.", "Emilio A.", "Melchora A.", "Apolinario M."];
+                document.getElementById('wheel-names-input').value = mockNames.join('\n');
+                this.updateWheel();
+            },
+
+            drawWheel() {
+                const canvas = document.getElementById('wheelCanvas');
+                const ctx = this.state.wheelContext;
+                const names = this.state.wheelNames;
+                const colors = this.state.wheelColors;
+                
+                // Clear
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const radius = canvas.width / 2 - 10;
+                
+                if (names.length === 0) {
+                    // Empty State
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                    ctx.fillStyle = '#f3f4f6';
+                    ctx.fill();
+                    ctx.strokeStyle = '#e5e7eb';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.fillStyle = '#9ca3af';
+                    ctx.font = '20px Inter';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('Add Names', centerX, centerY);
+                    return;
+                }
+
+                const arcSize = (2 * Math.PI) / names.length;
+
+                // Save context before rotation
+                ctx.save();
+                // Apply current rotation for animation
+                ctx.translate(centerX, centerY);
+                ctx.rotate(this.state.currentRotation);
+                ctx.translate(-centerX, -centerY);
+
+                names.forEach((name, i) => {
+                    const angle = i * arcSize;
+                    
+                    // Slice
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, centerY);
+                    ctx.arc(centerX, centerY, radius, angle, angle + arcSize);
+                    ctx.fillStyle = colors[i % colors.length];
+                    ctx.fill();
+
+                    // Highlight if selected
+                    if (this.state.highlightIndex === i) {
+                        ctx.lineWidth = 6;
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.stroke();
+
+                        // Slight inner glow
+                        ctx.beginPath();
+                        ctx.moveTo(centerX, centerY);
+                        ctx.arc(centerX, centerY, radius - 6, angle + 0.01, angle + arcSize - 0.01);
+                        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+                        ctx.lineWidth = 12;
+                        ctx.stroke();
+                    } else {
+                        ctx.lineWidth = 1;
+                        ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+                        ctx.stroke();
+                    }
+
+                    // Text
+                    ctx.save();
+                    ctx.translate(centerX, centerY);
+                    ctx.rotate(angle + arcSize / 2);
+                    ctx.textAlign = "right";
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 16px Inter";
+                    // shorten text if too long
+                    const displayName = name.length > 20 ? name.slice(0, 17) + '...' : name;
+                    ctx.fillText(displayName, radius - 20, 5); // Adjust text position
+                    ctx.restore();
+                });
+
+                ctx.restore();
+            },
+
+            spinWheel() {
+                const names = this.state.wheelNames;
+                if (this.state.isSpinning || names.length === 0) {
+                    if (names.length === 0) alert('Add names before spinning the wheel.');
+                    return;
+                }
+
+                this.state.isSpinning = true;
+                this.state.highlightIndex = null;
+                this.state.lastWinnerIndex = null;
+                document.getElementById('winner-name').innerText = "...";
+                document.getElementById('winner-actions').classList.add('hidden');
+                const btn = document.getElementById('spin-btn');
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+
+                const n = names.length;
+                const arcSize = (2 * Math.PI) / n;
+
+                // Choose random target index
+                const targetIndex = Math.floor(Math.random() * n);
+                this.state.lastWinnerIndex = targetIndex;
+
+                // Compute rotation so that target slice center aligns with pointer (right side = 0)
+                const targetCenter = targetIndex * arcSize + arcSize / 2;
+                const desiredRotation = -targetCenter; // as derived
+
+                // Choose number of extra spins
+                const extraSpins = 4 + Math.floor(Math.random() * 4); // 4-7
+
+                // Normalize delta to positive value in [0, 2π)
+                const delta = ((desiredRotation - this.state.currentRotation) % (2 * Math.PI) + (2 * Math.PI)) % (2 * Math.PI);
+                const finalRotation = this.state.currentRotation + extraSpins * 2 * Math.PI + delta;
+
+                const duration = 4000 + Math.floor(Math.random() * 2000); // 4-6s
+                const startRotation = this.state.currentRotation;
+                const startTime = performance.now();
+
+                const tick = (now) => {
+                    const elapsed = now - startTime;
+                    let t = Math.min(1, elapsed / duration);
+                    const eased = this.easeOutCubic(t);
+                    this.state.currentRotation = startRotation + (finalRotation - startRotation) * eased;
+                    // keep it in reasonable range to avoid large numbers
+                    if (this.state.currentRotation > 1e6) this.state.currentRotation %= (2 * Math.PI);
+                    this.drawWheel();
+
+                    if (t < 1) {
+                        requestAnimationFrame(tick);
+                    } else {
+                        // Snap to exact desired rotation modulo 2π
+                        this.state.currentRotation = (desiredRotation % (2 * Math.PI) + (2 * Math.PI)) % (2 * Math.PI);
+                        this.drawWheel();
+                        this.state.isSpinning = false;
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                        // Set highlight and show winner
+                        this.state.highlightIndex = targetIndex;
+                        const winner = names[targetIndex];
+                        document.getElementById('winner-name').innerText = winner + '!';
+                        document.getElementById('winner-actions').classList.remove('hidden');
+
+                        // Optional small pulse animation to emphasize
+                        const el = document.getElementById('winner-name');
+                        el.classList.add('animate-pulse');
+                        setTimeout(() => el.classList.remove('animate-pulse'), 1200);
+                    }
+                };
+
+                requestAnimationFrame(tick);
+            },
+
+            determineWinner() {
+                // Backwards-compatible: determineWinner now just maps current rotation to a winner index
+                const names = this.state.wheelNames;
+                if (names.length === 0) return null;
+
+                const arcSize = (2 * Math.PI) / names.length;
+                const effectiveAngle = (2 * Math.PI - this.state.currentRotation) % (2 * Math.PI);
+                const winningIndex = Math.floor(effectiveAngle / arcSize);
+                return winningIndex;
+            },
+
+            removeWinner() {
+                const idx = this.state.lastWinnerIndex !== null ? this.state.lastWinnerIndex : this.state.highlightIndex;
+                if (idx === null || idx === undefined) return;
+                const names = this.state.wheelNames;
+                if (idx < 0 || idx >= names.length) return;
+
+                if (!confirm(`Remove winner "${names[idx]}" from the list?`)) return;
+
+                names.splice(idx, 1);
+                document.getElementById('wheel-names-input').value = names.join('\n');
+                this.state.lastWinnerIndex = null;
+                this.state.highlightIndex = null;
+                document.getElementById('winner-name').innerText = '---';
+                document.getElementById('winner-actions').classList.add('hidden');
+                this.drawWheel();
+            }
+
+
+            // --- CHECKOUT LOGIC ---
+            ,scrollToEvents() {
+                document.getElementById('events-grid').scrollIntoView({ behavior: 'smooth' });
+            },
+
+            openCheckout(id) {
+                // Optional: Force login?
+                // if (!this.state.currentUser) {
+                //    this.openAuthModal('login');
+                //    return;
+                // }
+
+                const event = this.state.events.find(e => e.id === id);
+                this.state.selectedEvent = event;
+                this.state.quantity = 1;
+
+                document.getElementById('checkout-title').innerText = event.title;
+                document.getElementById('checkout-date').innerText = `${event.date} • ${event.time}`;
+                document.getElementById('checkout-venue').innerText = event.venue;
+                document.getElementById('checkout-img').style.backgroundImage = `url('${event.image}')`;
+                
+                // Show user name if logged in
+                const buyerName = this.state.currentUser ? this.state.currentUser.name : 'Guest';
+                document.getElementById('checkout-buyer').innerText = buyerName;
+
+                this.updateTotal();
+                document.getElementById('checkout-modal').classList.remove('hidden');
+            },
+
+            updateQty(change) {
+                const newQty = this.state.quantity + change;
+                if (newQty >= 1 && newQty <= 10) {
+                    this.state.quantity = newQty;
+                    document.getElementById('checkout-qty').innerText = newQty;
+                    this.updateTotal();
+                }
+            },
+
+            updateTotal() {
+                const total = this.state.selectedEvent.price * this.state.quantity;
+                document.getElementById('checkout-total').innerText = total === 0 ? 'Free' : '₱' + total.toLocaleString();
+            },
+
+            processPayment(method) {
+                document.getElementById('checkout-modal').classList.add('hidden');
+                document.getElementById('processing-modal').classList.remove('hidden');
+                
+                const gatewayName = method === 'gcash' ? 'GCash' : 'Maya';
+                document.getElementById('gateway-name').innerText = gatewayName;
+                document.getElementById('gateway-name').className = method === 'gcash' ? 'text-blue-600' : 'text-green-500';
+
+                setTimeout(() => {
+                    this.generateTicket(method);
+                }, 2000);
+            },
+
+            generateTicket(method) {
+                const event = this.state.selectedEvent;
+                const total = event.price * this.state.quantity;
+                const ticketId = 'SCH-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+                
+                // Use actual user name
+                const attendeeName = this.state.currentUser ? this.state.currentUser.name : "Guest Attendee";
+
+                document.getElementById('ticket-event-title').innerText = event.title;
+                document.getElementById('ticket-event-type').innerText = event.category;
+                document.getElementById('ticket-datetime').innerText = `${event.date} • ${event.time}`;
+                document.getElementById('ticket-venue').innerText = event.venue;
+                document.getElementById('ticket-qty').innerText = `${this.state.quantity} Person${this.state.quantity > 1 ? 's' : ''}`;
+                document.getElementById('ticket-price').innerText = total === 0 ? 'Free' : '₱' + total.toLocaleString();
+                document.getElementById('ticket-id').innerText = `ID: ${ticketId}`;
+                document.getElementById('ticket-img-container').style.backgroundImage = `url('${event.image}')`;
+                
+                // Set Attendee Name
+                document.getElementById('ticket-attendee').innerText = attendeeName;
+
+                document.getElementById('processing-modal').classList.add('hidden');
+                document.getElementById('ticket-modal').classList.remove('hidden');
+            },
+
+            closeModal(modalId) {
+                document.getElementById(modalId).classList.add('hidden');
+            },
+        };
+
+        // Initialize App
+        app.init();
+    </script>
+</body>
+</html>
